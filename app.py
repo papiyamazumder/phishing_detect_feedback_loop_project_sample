@@ -21,15 +21,17 @@ HYBRID SCORING (3-layer decision system):
   Layer 3 — Weighted blend:  50 % ML confidence + 50 % rule risk score
 """
 
-import os, sys, json, time
+import os, sys, json, time, re, email
 import numpy as np
 import torch
+import PyPDF2
+from src.preprocess import parse_eml_content, clean_text
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from transformers import DistilBertTokenizerFast, DistilBertForSequenceClassification
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
-from preprocess      import preprocess_for_distilbert
+from preprocess      import preprocess_for_distilbert, parse_eml_content
 from keyword_detector import scan_text
 from features        import extract_all_features
 
@@ -159,6 +161,13 @@ def predict():
     if len(text) > 5000:
         return jsonify({"error": "Text exceeds 5000 character limit"}), 400
 
+    # ── EML Detection & Parsing ──────────────────────────────────────────────
+    # If the text starts with common EML headers, parse it to extract clean Body
+    is_raw_eml = any(text.lstrip().upper().startswith(h) for h in ["DELIVERED-TO:", "RECEIVED:", "RETURN-PATH:", "FROM:"])
+    if is_raw_eml:
+        print("Raw EML detected, parsing...")
+        text = parse_eml_content(text)
+
     # ── Model prediction ──────────────────────────────────────────────────────
     try:
         label, confidence = model_predict(text)
@@ -191,24 +200,28 @@ def predict():
     has_urgency        = "urgency"             in kw_result.categories
     has_credential     = "credential_harvesting" in kw_result.categories
 
+    # Base dynamic blend (50% ML + 50% Rule Risk)
+    combined = (confidence * 0.50) + (kw_result.risk_score * 0.50)
+
     # Layer 1: Suspicious URL hard override
     if has_suspicious_url:
         final_label      = 1
-        final_confidence = max(confidence, 0.82)
+        # Add a dynamic 25% bump for severe URL threat, capped at 99%
+        final_confidence = min(combined + 0.25, 0.99)
         override_reason  = "suspicious_url"
 
     # Layer 2: BEC / aviation spear phishing pattern
     elif (has_bec_pattern or has_aviation or has_enterprise) and \
          (has_urgency or has_threat) and has_credential:
         final_label      = 1
-        final_confidence = max(confidence, 0.75)
+        # Add a dynamic 15% bump for BEC threats
+        final_confidence = min(combined + 0.15, 0.99)
         override_reason  = "bec_pattern"
 
-    # Layer 3: Weighted combination (equal 50/50 weight)
+    # Layer 3: Weighted combination
     else:
-        combined         = (confidence * 0.50) + (kw_result.risk_score * 0.50)
         final_label      = 1 if combined >= 0.45 else label
-        final_confidence = combined if final_label != label else confidence
+        final_confidence = combined
         override_reason  = "weighted_score"
 
     # ── Tri-level prediction label ────────────────────────────────────────────
@@ -249,6 +262,62 @@ def predict():
     }
 
     return jsonify(response)
+
+
+@app.route("/api/parse-file", methods=["POST"])
+def parse_file():
+    """
+    Endpoint to parse .eml, .pdf, and .txt files.
+    Returns the extracted plain text body.
+    """
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part in the request"}), 400
+    
+    file = request.files['file']
+    if not file or file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+
+    filename = file.filename.lower()
+    
+    # Check file size (2MB limit)
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    if file_size > 2 * 1024 * 1024:
+        return jsonify({"error": "File size exceeds 2MB limit"}), 400
+    file.seek(0)
+
+    try:
+        content = ""
+        if filename.endswith('.eml'):
+            raw_bytes = file.read()
+            # Try to decode the whole file as string first to use our preprocess helper
+            try:
+                raw_str = raw_bytes.decode("utf-8", errors="ignore")
+            except:
+                raw_str = str(raw_bytes)
+            
+            content = parse_eml_content(raw_str)
+            # Remove any residual Quoted-Printable artifacts if helper missed them
+            content = re.sub(r'=\r?\n', '', content)
+            content = re.sub(r'=[0-9A-F]{2}', '', content)
+
+        elif filename.endswith('.pdf'):
+            reader = PyPDF2.PdfReader(file)
+            content = "\n".join(p.extract_text() for p in reader.pages).strip()
+
+        elif filename.endswith('.txt'):
+            content = file.read().decode("utf-8", errors="ignore").strip()
+
+        else:
+            return jsonify({"error": "Unsupported file format. Please use .eml, .pdf, or .txt"}), 400
+
+        return jsonify({
+            "text": content,
+            "filename": file.filename
+        })
+
+    except Exception as e:
+        return jsonify({"error": f"Failed to parse file: {str(e)}"}), 500
 
 
 @app.route("/api/keywords", methods=["GET"])

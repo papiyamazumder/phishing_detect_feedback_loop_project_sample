@@ -154,11 +154,15 @@ def extract_keyword_features(text: str) -> dict:
                                   "threat_score", "financial_score", "lure_score"]}
 
     lower   = text.lower()
-    n_words = max(len(text.split()), 1)
 
     def score(word_list):
         count = sum(1 for w in word_list if w in lower)
-        return (count / n_words) * 100   # per-100-words normalization
+        # Dynamic Risk Saturation Scale
+        if count == 0: return 0.0
+        if count == 1: return 30.0
+        if count == 2: return 65.0
+        if count == 3: return 85.0
+        return 100.0
 
     return {
         "urgency_score":    score(URGENCY_WORDS),
@@ -176,15 +180,22 @@ def extract_aviation_features(text: str) -> dict:
                 "contextual_combo_score": 0.0}
 
     lower   = text.lower()
-    n_words = max(len(text.split()), 1)
 
     def score(word_list):
         count = sum(1 for w in word_list if w in lower)
-        return (count / n_words) * 100
+        # Aviation signals carry slightly heavier weight
+        if count == 0: return 0.0
+        if count == 1: return 35.0
+        if count == 2: return 75.0
+        if count == 3: return 90.0
+        return 100.0
 
-    # Contextual combination score — counts how many dangerous pairs co-occur
+    # Contextual combination score
     combo_hits = sum(1 for a, b in DANGEROUS_COMBOS if a in lower and b in lower)
-    combo_score = min(combo_hits * 2.0, 10.0)  # cap at 10
+    combo_score = 0.0
+    if combo_hits == 1: combo_score = 40.0
+    elif combo_hits == 2: combo_score = 80.0
+    elif combo_hits >= 3: combo_score = 100.0
 
     return {
         "aviation_phish_score":    score(AVIATION_WORDS),

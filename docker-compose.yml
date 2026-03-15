@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    image: phishguard-backend
+    container_name: phishguard-backend
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_ENV=production
+    volumes:
+      - ./models:/app/models
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:5001/api/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - phishguard-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    image: phishguard-frontend
+    container_name: phishguard-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - phishguard-network
+
+networks:
+  phishguard-network:
+    driver: bridge

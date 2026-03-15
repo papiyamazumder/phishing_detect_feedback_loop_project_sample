@@ -28,6 +28,8 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
+import email
+from email import policy
 
 # Download required NLTK data (runs once, cached after)
 nltk.download("punkt",          quiet=True)
@@ -46,6 +48,39 @@ _stop_words = set(stopwords.words("english"))
 KEEP_WORDS = {"now", "free", "click", "limited", "urgent", "immediately",
               "account", "verify", "update", "confirm", "suspend", "expires"}
 _stop_words -= KEEP_WORDS
+
+
+def parse_eml_content(raw_content: str) -> str:
+    """
+    Parses raw EML content to extract the Subject and Body.
+    Returns a unified string for analysis.
+    """
+    try:
+        msg = email.message_from_string(raw_content, policy=policy.default)
+        
+        subject = msg.get('Subject', '')
+        
+        body = ""
+        if msg.is_multipart():
+            for part in msg.walk():
+                content_type = part.get_content_type()
+                content_disposition = str(part.get("Content-Disposition"))
+                
+                if content_type == "text/plain" and "attachment" not in content_disposition:
+                    body = part.get_payload(decode=True).decode(part.get_content_charset() or 'utf-8', errors='ignore')
+                    break
+                elif content_type == "text/html" and not body and "attachment" not in content_disposition:
+                    # fallback to HTML if plain text not found
+                    body = part.get_payload(decode=True).decode(part.get_content_charset() or 'utf-8', errors='ignore')
+        else:
+            body = msg.get_payload(decode=True).decode(msg.get_content_charset() or 'utf-8', errors='ignore')
+
+        # Combine subject and body
+        combined = f"Subject: {subject}\n\n{body}"
+        return combined.strip()
+    except Exception as e:
+        print(f"EML parsing failed: {e}")
+        return raw_content # Fallback to raw if parsing fails
 
 
 def clean_text(text: str) -> str:

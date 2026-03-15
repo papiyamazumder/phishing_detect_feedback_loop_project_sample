@@ -1,0 +1,27 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libgomp1 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy and install requirements separately for better layer caching
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application files
+COPY src/ src/
+COPY app.py .
+
+# Create models directory (to be mounted)
+RUN mkdir -p models
+
+# Expose the original backend port
+EXPOSE 5001
+
+# Run the application
+CMD ["python", "app.py"]

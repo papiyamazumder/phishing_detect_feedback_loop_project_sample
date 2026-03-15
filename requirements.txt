@@ -33,3 +33,6 @@ ipywidgets>=8.0.0
 
 # Dataset download
 kaggle>=1.6.12
+
+# Document parsing
+PyPDF2>=3.0.0

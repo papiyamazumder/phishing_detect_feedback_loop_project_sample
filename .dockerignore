@@ -1,0 +1,16 @@
+.git
+.gitignore
+node_modules
+venv*
+__pycache__
+*.pyc
+.env
+data/
+models/
+README.md
+Dockerfile*
+docker-compose.yml
+.dockerignore
+frontend/node_modules
+frontend/build
+frontend/package-lock.json

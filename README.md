@@ -52,11 +52,10 @@ phishing-detector/
 
 ### 1. Core Environment
 ```bash
-# Create and activate virtual environment
-python -m venv venv
-source venv/bin/activate
+# Activate existing virtual environment
+source venv_3.11/bin/activate
 
-# Install production dependencies
+# Install production dependencies (if needed)
 pip install -r requirements.txt
 ```
 
@@ -67,7 +66,7 @@ python data/download_dataset.py
 ```
 
 ### 3. Start Secure API
-The backend serves on port 5000:
+The backend serves on port **5001**:
 ```bash
 python app.py
 ```
