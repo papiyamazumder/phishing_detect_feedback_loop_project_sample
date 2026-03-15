@@ -367,16 +367,17 @@ def get_keywords():
 def feedback():
     """
     Collect user feedback for misclassified messages.
-    Saves to data/feedback.csv for future retraining.
+    Supports simple Thumbs Up/Down + Comments.
     """
     data = request.get_json(silent=True)
-    if not data or "text" not in data or "correct_label" not in data:
-        return jsonify({"error": "Missing required fields (text, correct_label)"}), 400
+    if not data or "text" not in data or "is_correct" not in data:
+        return jsonify({"error": "Missing required fields (text, is_correct)"}), 400
 
-    text          = data["text"].strip()
-    correct_label = data["correct_label"] # "Phishing" or "Legitimate"
-    prediction    = data.get("prediction", "Unknown")
-    confidence    = data.get("confidence", 0.0)
+    text       = data["text"].strip()
+    is_correct = data["is_correct"] # True (Up) or False (Down)
+    comment    = data.get("comment", "").strip()
+    prediction = data.get("prediction", "Unknown")
+    confidence = data.get("confidence", 0.0)
 
     feedback_file = os.path.join(BASE_DIR, "data", "feedback.csv")
     
@@ -389,18 +390,20 @@ def feedback():
         with open(feedback_file, mode="a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             if not file_exists:
-                writer.writerow(["timestamp", "text", "correct_label", "model_prediction", "model_confidence"])
+                writer.writerow(["timestamp", "text", "is_correct", "prediction", "confidence", "comment"])
             
             writer.writerow([
                 time.strftime("%Y-%m-%d %H:%M:%S"),
-                text.replace("\n", " "), # Flatten text for CSV
-                correct_label,
+                text.replace("\n", " "),
+                is_correct,
                 prediction,
-                confidence
+                confidence,
+                comment.replace("\n", " ")
             ])
         
-        logger.info(f"Feedback received: {correct_label} (Predicted: {prediction})")
-        return jsonify({"status": "success", "message": "Feedback saved. Thank you for helping PhishGuard improve!"})
+        status_msg = "Upvote" if is_correct else "Downvote"
+        logger.info(f"Feedback received: {status_msg} | Comment: {comment[:30]}...")
+        return jsonify({"status": "success", "message": "Feedback saved. Thank you for helping us improve!"})
     except Exception as e:
         logger.error(f"Failed to save feedback: {str(e)}")
         return jsonify({"error": "Failed to save feedback"}), 500

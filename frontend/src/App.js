@@ -177,6 +177,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [apiStatus, setApiStatus] = useState("unknown");
   const [feedbackStatus, setFeedbackStatus] = useState(null); // null, 'sending', 'sent', 'error'
+  const [feedbackComment, setFeedbackComment] = useState("");
   const resultRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -276,10 +277,11 @@ export default function App() {
     } finally {
       setLoading(false);
       setFeedbackStatus(null);
+      setFeedbackComment("");
     }
   };
 
-  const submitFeedback = async (correctLabel) => {
+  const submitFeedback = async (isCorrect) => {
     if (!result || !text) return;
     setFeedbackStatus('sending');
 
@@ -289,7 +291,8 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text,
-          correct_label: correctLabel,
+          is_correct: isCorrect,
+          comment: feedbackComment,
           prediction: result.prediction,
           confidence: result.confidence
         }),
@@ -297,6 +300,7 @@ export default function App() {
 
       if (!res.ok) throw new Error("Feedback submission failed");
       setFeedbackStatus('sent');
+      setFeedbackComment("");
     } catch (e) {
       setFeedbackStatus('error');
     }
@@ -569,20 +573,41 @@ Or upload a .eml, .txt, or .pdf file using the button below.`}
                 {feedbackStatus === 'sent' ? (
                   <div className="feedback-thanks">
                     <span className="check-icon">✓</span>
-                    <p>Feedback received! Our engineers will use this to improve the PhishGuard model.</p>
+                    <p>Feedback received! Thank you for helping us improve.</p>
                   </div>
                 ) : (
                   <>
-                    <p className="feedback-prompt">Is this result incorrect? Help us improve our intelligence:</p>
-                    <div className="feedback-actions">
-                      <button
-                        className="feedback-btn"
-                        onClick={() => submitFeedback(result.prediction === "Phishing" ? "Legitimate" : "Phishing")}
-                        disabled={feedbackStatus === 'sending'}
-                      >
-                        {feedbackStatus === 'sending' ? 'Submitting...' : `Report as ${result.prediction === "Phishing" ? "Legitimate" : "Phishing"}`}
-                      </button>
-                      {feedbackStatus === 'error' && <span className="feedback-err">Failed to send feedback.</span>}
+                    <p className="feedback-prompt">Was this analysis accurate?</p>
+                    <div className="feedback-actions-wrap">
+                      <div className="feedback-thumbs">
+                        <button
+                          className="thumb-btn up"
+                          onClick={() => submitFeedback(true)}
+                          disabled={feedbackStatus === 'sending'}
+                          title="This result is correct"
+                        >
+                          👍
+                        </button>
+                        <button
+                          className="thumb-btn down"
+                          onClick={() => submitFeedback(false)}
+                          disabled={feedbackStatus === 'sending'}
+                          title="This result is incorrect"
+                        >
+                          👎
+                        </button>
+                      </div>
+
+                      <div className="feedback-comment-box">
+                        <textarea
+                          placeholder="What did you like or dislike? (optional)"
+                          value={feedbackComment}
+                          onChange={(e) => setFeedbackComment(e.target.value.slice(0, 500))}
+                          disabled={feedbackStatus === 'sending'}
+                        />
+                      </div>
+
+                      {feedbackStatus === 'error' && <span className="feedback-err">Submission failed.</span>}
                     </div>
                   </>
                 )}
