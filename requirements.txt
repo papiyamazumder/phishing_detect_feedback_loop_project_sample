@@ -37,3 +37,7 @@ kaggle>=1.6.12
 
 # Document parsing
 PyPDF2>=3.0.0
+
+# Development / Testing
+pytest>=7.4.0
+flake8>=6.1.0

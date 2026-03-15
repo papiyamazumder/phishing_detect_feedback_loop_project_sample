@@ -131,18 +131,19 @@ To distinguish this project from a standard academic exercise, I implemented sev
 To demonstrate production-standard software engineering maturity:
 
 1.  **Automated Testing (Pytest):** A comprehensive unit test suite in `tests/` verifies the integrity of the NLP pipeline, keyword detector, and Unicode normalization. Run `make test` to see 100% passing results.
-2.  **Workflow Orchestration (Makefile):** Standardized targets for `install`, `train`, `test`, and `run` provide a professional developer experience.
-3.  **CI/CD (GitHub Actions):** Automated linting and testing are configured in `.github/workflows/ci.yml` for modern development lifecycles.
-4.  **Observability:** Switched from basic script-style `print()` statements to professional Python `logging` for production-grade API monitoring.
+2.  **Workflow Orchestration (Makefile):** Standardized targets for `install`, `train`, `test`, `run`, and Docker operations provide a professional developer experience.
+3.  **CI/CD (GitHub Actions):** Automated linting (flake8) and testing (pytest) are configured in `.github/workflows/ci.yml` for modern development lifecycles.
+4.  **Professional Logging:** Switched from basic script-style `print()` statements to Python's built-in `logging` module for production-grade API observability.
 
 ---
 
-## Continuous Improvement (Human-in-the-loop)
+## Continuous Improvement (The Feedback Flywheel)
 
-Most academic ML models are static. PhishGuard AI is built as a **evolving system**:
+Most academic ML models are static. PhishGuard AI is built as a **self-evolving system**:
 
-1.  **Feedback Loop:** Implemented a `/api/feedback` endpoint and UI button that allows users to provide Thumbs Up/Down ratings and qualitative comments.
-2.  **Model Evolution:** Feedback is saved in `data/feedback.csv`. I updated `src/train.py` to **automatically ingest** this data. During the next training cycle, the model maps user feedback to ground-truth labels and retrains, effectively "learning" from its mistakes.
+1.  **Refined HitL UI:** Implemented a Thumbs Up/Down rating system with an optional qualitative comment field for granular user feedback.
+2.  **Data Ingestion Pipeline:** Feedback is persistently saved in `data/feedback.csv`.
+3.  **Automated Model Evolution:** I updated `src/train.py` to **automatically ingest and map** this data. During the next retraining cycle (run via `make train`), the model merges human feedback with the primary dataset, effectively "learning" from real-world edge cases.
 
 ---
 
