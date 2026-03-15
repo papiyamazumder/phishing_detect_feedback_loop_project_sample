@@ -137,14 +137,6 @@ To demonstrate production-standard software engineering maturity:
 
 ---
 
-## Continuous Improvement (The Feedback Flywheel)
-
-Most academic ML models are static. PhishGuard AI is built as a **self-evolving system**:
-
-1.  **Refined HitL UI:** Implemented a Thumbs Up/Down rating system with an optional qualitative comment field for granular user feedback.
-2.  **Data Ingestion Pipeline:** Feedback is persistently saved in `data/feedback.csv`.
-3.  **Automated Model Evolution:** I updated `src/train.py` to **automatically ingest and map** this data. During the next retraining cycle (run via `make train`), the model merges human feedback with the primary dataset, effectively "learning" from real-world edge cases.
-
 ---
 
 ---
@@ -210,6 +202,8 @@ GET  /api/health       Model load status + device (CPU/GPU/MPS)
 GET  /api/keywords     Full keyword lexicon with category counts
 GET  /api/demo         5 pre-built test messages including aviation scenarios
 POST /api/parse-file   Upload .eml, .pdf, or .txt to extract and analyse
+POST /api/feedback     Submit correction on a misclassified message — 
+                       stored in data/feedback.csv for next retraining cycle
 ```
 
 Example:
