@@ -22,7 +22,7 @@ train:
 	python src/train.py
 
 test:
-	pytest tests/ -v
+	PYTHONPATH=. pytest tests/ -v
 
 run:
 	@echo "Starting backend..."
