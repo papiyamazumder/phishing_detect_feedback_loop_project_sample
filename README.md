@@ -38,28 +38,28 @@ Recall is the priority metric — a missed phishing attack is worse than a false
 ---
 
 ## Project structure
-
 ```
-app.py                    Flask API — 6 endpoints, hybrid scoring
-src/
-  preprocess.py           Two NLP pipelines (DistilBERT + classical)
-  features.py             25 hand-crafted features + TF-IDF
-  keyword_detector.py     9-category regex scanner + URL signals
-  train.py                DistilBERT fine-tuning with feedback ingestion
-  evaluate.py             Metrics + diagnostic plots
-  model_comparison.py     5-model comparison + SHAP explanations
-data/
-  dataset.csv             30k balanced emails
-  download_dataset.py     Multi-source downloader with fallback
-models/
-  phishing_model.pkl      Best classical model (Linear SVM pipeline)
-  metrics.json            All evaluation scores
-  *.png                   Confusion matrix, ROC curve, comparison chart
-notebook/
-  phishing_detection_experimentation.ipynb
-frontend/                 React dashboard
-docker-compose.yml        One-command deployment
-Makefile                  install / train / run targets
+phishing_detection_project_aiml/
+├── app.py                    Flask API — 6 endpoints, hybrid scoring
+├── src/
+│   ├── preprocess.py         Two NLP pipelines (DistilBERT + classical)
+│   ├── features.py           25 hand-crafted features + TF-IDF
+│   ├── keyword_detector.py   9-category regex scanner + URL signals
+│   ├── train.py              DistilBERT fine-tuning with feedback ingestion
+│   ├── evaluate.py           Metrics + diagnostic plots
+│   └── model_comparison.py   5-model comparison + SHAP explanations
+├── data/
+│   ├── dataset.csv           30k balanced emails
+│   └── download_dataset.py   Multi-source downloader with fallback
+├── models/
+│   ├── phishing_model.pkl    Best classical model (Linear SVM pipeline)
+│   ├── metrics.json          All evaluation scores
+│   └── *.png                 Confusion matrix, ROC curve, comparison chart
+├── notebook/
+│   └── phishing_detection_experimentation.ipynb
+├── frontend/                 React dashboard
+├── docker-compose.yml        One-command deployment
+└── Makefile                  install / train / run targets
 ```
 
 ---
