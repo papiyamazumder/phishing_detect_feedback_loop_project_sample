@@ -39,6 +39,7 @@ Recall is the priority metric — a missed phishing attack is worse than a false
 
 ## Project structure
 
+```
 app.py                    Flask API — 6 endpoints, hybrid scoring
 src/
   preprocess.py           Two NLP pipelines (DistilBERT + classical)
@@ -60,6 +61,7 @@ tests/                    14 tests — unit + API integration
 frontend/                 React dashboard
 docker-compose.yml        One-command deployment
 Makefile                  install / train / test / run targets
+```
 
 ---
 
@@ -109,12 +111,14 @@ Detected keywords are highlighted in the React dashboard so users can see exactl
 
 Backend runs on port 5001.
 
+```
 POST /api/predict      Hybrid prediction — returns label, confidence, risk level, keywords
 GET  /api/health       Model load status + device info
 GET  /api/keywords     Full keyword lexicon with category counts
 GET  /api/demo         5 pre-built test messages
 POST /api/parse-file   Upload .eml, .pdf, or .txt for analysis
 POST /api/feedback     Submit correction — stored in data/feedback.csv for retraining
+```
 
 ---
 
