@@ -1,84 +1,74 @@
-# Technical Walkthrough: PhishGuard AI Submission
+# Technical Walkthrough
 
-This document provides a guided "tour" of the technical implementation for the **PhishGuard AI** project, specifically highlighting how it meets and exceeds the requirements for the AI Engineer recruitment assignment.
-
----
-
-## I. Technical Core: Hybrid AI Architecture
-PhishGuard AI employs a multi-layered detection strategy to maximize recall while maintaining enterprise-level precision.
-
-- **Layer 1: Deep Learning (DistilBERT)** - A bidirectional transformer model that understands semantic context. Unlike basic keyword scrapers, it can detect "spear phishing" where the language is professional but the intent is malicious.
-- **Layer 2: Rule-Based Heuristics** - A robust scanner that flags known phishing patterns, urgency cues, and domain-specific red flags (Aviation/Enterprise).
-- **Layer 3: Feature Engineering** - 25+ hand-crafted features quantifying text structure, URL signals, and keyword density.
-
-### Scaling & Preprocessing Optimization
-We use **MaxAbsScaler** for feature normalization. Since TF-IDF produces sparse matrices where the zero-value is physically meaningful (word absence), `MaxAbsScaler` is superior to `MinMaxScaler` as it scales the data without shifting the mean, thus preserving the sparsity and interpretability of the feature space.
+This document explains the key technical decisions in the PhishGuard AI project. It is a companion to the README — the README covers what was built, this covers why.
 
 ---
 
-## II. Data Strategy: Multi-Source Realism
+## Detection architecture
 
-Single-source phishing datasets have two problems: they are old (most stop at 2008) and email-only (missing SMS attacks). We ran a gap analysis and picked three sources to fix both.
+The system combines a DistilBERT model with a rule-based keyword scanner. Neither layer works well alone:
 
-**Source 1 — `naserabdullahalam/phishing-email-dataset`**  
-6 real-world corpora in one Kaggle dataset. We chose this because it is the only source that combines legitimate corporate emails (Enron) with real scraped phishing (Nazario) rather than templated synthetic data. The other 4 corpora (CEAS, Ling Spam, Nigerian Fraud, SpamAssassin) add volume and attack style diversity. Total: ~82k emails, 2000–2008.
+- **ML alone** gets fooled by spear phishing. When 85% of the tokens are clean business language, the model's average confidence leans towards "legitimate" even if there is a malicious `.biz` link in the text.
+- **Rules alone** miss novel attack patterns and cannot understand semantic context.
 
-**Source 2 — `subhajournal/phishingemails`**  
-Phishing in 2008 looks nothing like phishing in 2021. This adds 18k modern emails covering COVID lures, cloud service impersonation (Office 365, SharePoint), and updated BEC templates. Without this, the model would miss how attackers write today.
-
-**Source 3 — `uciml/sms-spam-collection` (attempted)**  
-Aviation crew receive operational SMS alerts. Attackers exploit this with SMiShing. We added this to cover the mobile channel. Kaggle returned a 403 on download — Sources 1 and 2 were merged for the final dataset. The downloader retries automatically.
-
-**Final dataset:** 182k raw → dedup → balanced to **30,000 rows, 15,000 per class.**  
-Cap at 15k per class is intentional — beyond this, accuracy gains are marginal but training time doubles.
-
-**Why email-first:** The assignment specifies emails and messages. QMSMART's attack surface is email — crew portal links, DGCA/FAA alerts, flight ops notices all arrive via email. It also has the largest publicly validated phishing datasets by far.
-
-**Offline fallback:** 600-sample synthetic dataset auto-generates when Kaggle credentials are unavailable. Zero setup required.
+The hybrid approach gives each layer what it is good at. Rules catch high-confidence signals (suspicious URLs, known BEC templates) with guaranteed recall. The ML model handles everything else using contextual understanding.
 
 ---
 
-## III. Production Readiness & Frontend
-The project demonstrates full-stack proficiency:
-- **Scalable Backend:** A Flask REST API with robust error handling and multi-part file support (`.eml`, `.pdf`, `.txt`) in `app.py`.
-- **Enterprise Dashboard:** Built with React 18, featuring dynamic risk gauges, URL signal analysis, and a dark/light mode toggle.
-- **Containerization:** A multi-layered Docker setup (`docker-compose.yml`) that optimizes for production weight and speed. We've even pre-instrumented the NLTK downloads in the Docker layer for zero-wait startup.
+## Preprocessing choices
+
+Two separate pipelines. This is not standard practice — most tutorials use one pipeline for everything.
+
+**Why:** DistilBERT performs worse when you lemmatize and strip stop words. Its attention mechanism needs natural sentence structure to work properly. TF-IDF vectors, on the other hand, need clean normalized tokens to produce meaningful features. Separate pipelines let each model receive the input format it actually needs.
+
+One detail worth noting: NLTK's default stop word list removes words like "urgent", "verify", "click". These are important phishing signals, so I kept them in.
 
 ---
 
-## IV. Production-Grade Optimizations
-To distinguish this submission from standard academic projects, we implemented three high-impact optimizations:
+## Data sources
 
-1.  **Adversarial Robustness (Unicode Normalization):**
-    Common phishing attacks use homoglyphs (e.g., swapping a Latin 'o' with a Greek 'ο') to bypass simple keyword filters. We implemented **NFKD Normalization** in `src/preprocess.py`. This ensures the model sees the "canonical" version of characters, making it immune to stylistic character-swap attacks.
+| Source | Why included | Size |
+|---|---|---|
+| `naserabdullahalam/phishing-email-dataset` | 6 real corpora (Enron + Nazario + 4 others). Combines real corporate email with real phishing — not synthetic templates. | ~82k emails, 2000–2008 |
+| `subhajournal/phishingemails` | Closes the era gap. Phishing tactics changed significantly after 2008 (COVID lures, cloud impersonation). | ~18k emails, 2019–2021 |
 
-2.  **Dynamic Model Quantization (INT8):**
-    DistilBERT can be memory-intensive. We applied **Dynamic Quantization** in `app.py`. This converts weights from 32-bit float to 8-bit integers during CPU inference, yielding a ~50% reduction in memory and 2-4x speedup.
+Final dataset: 30,000 rows after dedup and balancing (15,000 per class). The cap at 15k is intentional — beyond this, accuracy gains are marginal but training time doubles.
 
-3.  **Explainable AI (SHAP - Gold Standard):**
-    Trust is paramount in security. We integrated **SHAP (SHapley Additive exPlanations)** to provide a mathematical "why" behind every prediction, showing exactly which tokens triggered a risk score.
-
----
-
-## V. Requirement Fulfillment Checklist
-- [x] **NLP Preprocessing**: Robust pipeline with lemmatization and signature stripping.
-- [x] **Feature Engineering**: Extracted message length, case density, and urgency signals.
-- [x] **Classification**: Fine-tuned Transformer (DistilBERT) with 98.30% accuracy.
-- [x] **Evaluation**: Documented precision, recall, and ROC-AUC metrics.
-- [x] **Keyword Detection**: Real-time highlighting of 9 distinct phishing categories.
-- [x] **Maintenance**: Professional logging, Makefile automation, and CI/CD pipelines.
-- [x] **Reliability**: Fully automated 14-test suite (Unit + API Integration) with 100% pass rate.
-- [x] **Feedback Loop**: Human-in-the-loop system for continuous model improvement.
-- [x] **User Interface**: Premium React dashboard with aviation-grade aesthetics.
+The downloader has a 4-tier fallback so it works even without Kaggle credentials.
 
 ---
 
-## VI. Continuous Improvement (The Feedback Flywheel)
-Most AI projects are "static." PhishGuard AI is dynamic. We implemented a **Refined Feedback Flywheel** to handle model drift:
+## Feature scaling
 
-1.  **Sentiment & Feedback:** Users can provide **Thumbs Up/Down** ratings and qualitative **Comments** directly from the result card.
-2.  **Rich Data Storage:** Feedback is saved in `data/feedback.csv` including timestamp, original text, user correction, model confidence, and user comments.
-3.  **Automated Ingestion:** We updated `src/train.py` to automatically detect this CSV. When retraining starts, it merges human feedback with the primary dataset, effectively "learning" from real-world edge cases.
+I used `MaxAbsScaler` instead of `MinMaxScaler`. TF-IDF produces sparse matrices where zeros mean "word not present." MinMaxScaler shifts the mean above zero, which destroys that sparsity. MaxAbsScaler scales without shifting, preserving both sparsity and meaning.
 
 ---
-*This project represents a complete, production-ready AI solution designed to showcase end-to-end expertise in NLP, Backend, and DevOps.*
+
+## Production extras
+
+These were not required but solve practical problems:
+
+| Feature | What it does | Where |
+|---|---|---|
+| Unicode NFKD normalization | Strips homoglyph attacks (Greek 'ο' swapped for Latin 'o') | `src/preprocess.py` |
+| INT8 quantization | Halves model memory, 2–4x faster CPU inference | `app.py` |
+| SHAP explanations | Shows which words drove each prediction | `src/model_comparison.py` |
+| Feedback endpoint | Saves user corrections for retraining | `app.py`, `data/feedback.csv` |
+| Test suite (14 tests) | Unit tests for NLP + API integration tests | `tests/` |
+| CI/CD | Linting + tests on every push | `.github/workflows/ci.yml` |
+
+---
+
+## Deliverable checklist
+
+| Requirement | Status | Location |
+|---|---|---|
+| Python project or Jupyter notebook | Done | `src/`, `notebook/` |
+| Trained model file (.pkl) | Done | `models/phishing_model.pkl` |
+| Data preprocessing code | Done | `src/preprocess.py` |
+| Model training code | Done | `src/train.py` |
+| Evaluation metrics | Done | `models/metrics.json` |
+| Confusion matrix | Done | `models/confusion_matrix.png` |
+| README explaining approach | Done | `README.md` |
+| UI (optional) | Done | `frontend/` (React dashboard) |
+| API endpoints (optional) | Done | `app.py` (6 endpoints) |
