@@ -141,8 +141,8 @@ To demonstrate production-standard software engineering maturity:
 
 Most academic ML models are static. PhishGuard AI is built as a **evolving system**:
 
-1.  **Feedback Loop:** Implemented a `/api/feedback` endpoint and UI button that allows users to report misclassifications.
-2.  **Data Flywheel:** Feedback is saved in `data/feedback.csv`, creating a high-quality, human-labeled dataset for the next session of fine-tuning. This handles **Data Drift** and evolution of phishing templates over time.
+1.  **Feedback Loop:** Implemented a `/api/feedback` endpoint and UI button that allows users to provide Thumbs Up/Down ratings and qualitative comments.
+2.  **Model Evolution:** Feedback is saved in `data/feedback.csv`. I updated `src/train.py` to **automatically ingest** this data. During the next training cycle, the model maps user feedback to ground-truth labels and retrains, effectively "learning" from its mistakes.
 
 ---
 

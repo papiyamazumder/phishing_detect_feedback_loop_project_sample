@@ -265,10 +265,31 @@ def train(data_path: str, model_dir: str):
     np.random.seed(CONFIG["seed"])
 
     # ── 1. LOAD DATA ──────────────────────────────────────────────────────────
-    print("\n[1/5] Loading dataset...")
+    print("\n[1/5] Loading primary dataset...")
     df = pd.read_csv(data_path)
     assert "text" in df.columns and "label" in df.columns, \
         "Dataset must have 'text' and 'label' columns"
+
+    # ── 1b. MERGE FEEDBACK (Human-in-the-loop) ────────────────────────────────
+    feedback_path = os.path.join(os.path.dirname(data_path), "feedback.csv")
+    if os.path.exists(feedback_path):
+        print(f"  ✓ Feedback data detected at {feedback_path}. Merging...")
+        fb_df = pd.read_csv(feedback_path)
+        
+        # Map feedback to standard (text, label) format
+        # Logic: If prediction was X and is_correct is False, label is NOT X.
+        fb_mapped = []
+        for _, row in fb_df.iterrows():
+            pred_val = 1 if str(row['prediction']).lower() == 'phishing' else 0
+            is_correct = str(row['is_correct']).lower() == 'true'
+            
+            # True Label logic
+            true_label = pred_val if is_correct else (1 - pred_val)
+            fb_mapped.append({"text": row['text'], "label": true_label})
+        
+        fb_final = pd.DataFrame(fb_mapped)
+        print(f"  ✓ Added {len(fb_final)} human-verified samples to training set.")
+        df = pd.concat([df, fb_final], ignore_index=True)
 
     df["text"] = df["text"].astype(str).apply(preprocess_for_distilbert)
     df = df.dropna(subset=["text", "label"])
